@@ -1,4 +1,5 @@
 import type { ChatMsg, ModelConfig } from '../types'
+import { fetchAI } from './fetchAI'
 import { fetchLinkContext } from './links'
 
 export interface StreamOpts {
@@ -49,11 +50,6 @@ export function buildMessages(msgs: ChatMsg[], system: string) {
     }
   }
   return out
-}
-
-function endpoint(baseUrl: string) {
-  const b = baseUrl.replace(/\/+$/, '')
-  return b.endsWith('/chat/completions') ? b : `${b}/chat/completions`
 }
 
 /** Reads an SSE chat-completions stream; separates reasoning tokens from content tokens. */
@@ -152,19 +148,15 @@ export async function streamChat(opts: StreamOpts): Promise<void> {
   } catch { /* non-fatal */ }
 
   try {
-    const res = await fetch(endpoint(model.baseUrl), {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(model.apiKey ? { Authorization: `Bearer ${model.apiKey}` } : {}),
-      },
-      body: JSON.stringify({
+    const res = await fetchAI({
+      model,
+      body: {
         model: model.modelId,
         messages: buildMessages(enriched, systemPrompt(opts.system)),
         temperature: opts.temperature ?? 0.7,
         stream: true,
         ...(opts.maxTokens ? { max_tokens: opts.maxTokens } : {}),
-      }),
+      },
       signal,
     })
     if (!res.ok || !res.body) {
@@ -197,7 +189,7 @@ export function extractUrls(text: string): string[] {
 export function friendlyError(e: unknown): string {
   const msg = String((e as any)?.message || e)
   if (/Failed to fetch|NetworkError|Load failed/i.test(msg))
-    return 'Could not reach your AI provider. Check your internet connection and the Base URL in Settings.'
+    return 'Could not reach your AI provider (direct and via proxy). Check your internet connection and the Base URL in Settings. Note: `http://` base URLs are blocked on the live site — use `https://`.'
   if (/API 401|API 403/.test(msg))
     return 'Your API key was rejected. Check the key in Settings.'
   if (/API 404/.test(msg))
@@ -299,20 +291,16 @@ export async function chatJSON<T>(opts: {
   const attempt = async (effort: boolean): Promise<T> => {
     const { model } = opts
     if (!model) throw new Error('No AI model configured')
-    const res = await fetch(endpoint(model.baseUrl), {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(model.apiKey ? { Authorization: `Bearer ${model.apiKey}` } : {}),
-      },
-      body: JSON.stringify({
+    const res = await fetchAI({
+      model,
+      body: {
         model: model.modelId,
         messages: buildMessages(opts.msgs, systemPrompt(opts.system)),
         temperature: opts.temperature ?? 0.6,
         stream: false,
         // NOTE: no max_tokens cap — reasoning models spend tokens thinking first
         ...(effort && opts.reasoningEffort ? { reasoning_effort: opts.reasoningEffort } : {}),
-      }),
+      },
     })
     if (!res.ok) {
       const text = await res.text().catch(() => '')
@@ -362,20 +350,16 @@ export async function streamJSON<T>(opts: {
   const attempt = async (effort: boolean): Promise<T> => {
     const { model } = opts
     if (!model) throw new Error('No AI model configured')
-    const res = await fetch(endpoint(model.baseUrl), {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(model.apiKey ? { Authorization: `Bearer ${model.apiKey}` } : {}),
-      },
-      body: JSON.stringify({
+    const res = await fetchAI({
+      model,
+      body: {
         model: model.modelId,
         messages: buildMessages(opts.msgs, systemPrompt(opts.system)),
         temperature: opts.temperature ?? 0.6,
         stream: true,
         // NOTE: no max_tokens cap — reasoning models spend tokens thinking first
         ...(effort && opts.reasoningEffort ? { reasoning_effort: opts.reasoningEffort } : {}),
-      }),
+      },
       signal: opts.signal,
     })
     if (!res.ok || !res.body) {

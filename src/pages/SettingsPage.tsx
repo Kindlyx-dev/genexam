@@ -7,6 +7,7 @@ import { useModels } from '../store/models'
 import { useTheme } from '../store/theme'
 import type { ModelConfig } from '../types'
 import { AI_PRESETS } from '../store/presets'
+import { fetchAI } from '../lib/fetchAI'
 
 interface Draft {
   id?: string
@@ -51,19 +52,13 @@ export default function SettingsPage() {
     setTesting(true)
     setTestResult(null)
     try {
-      const baseUrl = draft.baseUrl.replace(/\/+$/, '')
-      const url = baseUrl.endsWith('/chat/completions') ? baseUrl : `${baseUrl}/chat/completions`
-      const res = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(draft.apiKey ? { Authorization: `Bearer ${draft.apiKey}` } : {}),
-        },
-        body: JSON.stringify({
+      const res = await fetchAI({
+        model: draft,
+        body: {
           model: draft.modelId,
           messages: [{ role: 'user', content: 'Reply with exactly: OK' }],
           max_tokens: 5,
-        }),
+        },
       })
       if (!res.ok) {
         const t = await res.text().catch(() => '')
