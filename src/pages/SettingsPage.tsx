@@ -83,13 +83,13 @@ export default function SettingsPage() {
     const data: Record<string, unknown> = {}
     for (let i = 0; i < localStorage.length; i++) {
       const k = localStorage.key(i)
-      if (k?.startsWith('lasttime')) data[k] = JSON.parse(localStorage.getItem(k) || '{}')
+      if (k?.startsWith('genexam')) data[k] = JSON.parse(localStorage.getItem(k) || '{}')
     }
-    delete data['lasttime-models'] // don't export API keys
+    delete data['genexam-models'] // don't export API keys
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
     const a = document.createElement('a')
     a.href = URL.createObjectURL(blob)
-    a.download = `lasttime-backup-${new Date().toISOString().slice(0, 10)}.json`
+    a.download = `genexam-backup-${new Date().toISOString().slice(0, 10)}.json`
     a.click()
   }
 
@@ -101,7 +101,7 @@ export default function SettingsPage() {
       try {
         const data = JSON.parse(reader.result as string)
         for (const [k, v] of Object.entries(data)) {
-          if (k !== 'lasttime-models') localStorage.setItem(k, JSON.stringify(v))
+          if (k !== 'genexam-models') localStorage.setItem(k, JSON.stringify(v))
         }
         location.reload()
       } catch {
@@ -282,7 +282,7 @@ export default function SettingsPage() {
             className="btn-soft ml-auto text-xs !text-red-500 hover:!border-red-500/40"
             onClick={() => {
               if (confirm('All data (papers, progress, chats) will be deleted, including models/API keys. Are you sure?')) {
-                Object.keys(localStorage).filter((k) => k.startsWith('lasttime')).forEach((k) => localStorage.removeItem(k))
+                Object.keys(localStorage).filter((k) => k.startsWith('genexam')).forEach((k) => localStorage.removeItem(k))
                 location.reload()
               }
             }}
@@ -293,7 +293,7 @@ export default function SettingsPage() {
       </section>
 
       <p className="pb-6 text-[11px] leading-relaxed text-faint">
-        🔒 API keys are never exported in backups. Requests go directly to your provider (OpenAI/Gemini/…) — LastTime has no server. Public CORS proxies are used to read YouTube/web links.
+        🔒 API keys are never exported in backups. Requests go directly to your provider (OpenAI/Gemini/…) — Genexam has no server. Public CORS proxies are used to read YouTube/web links.
       </p>
     </div>
   )

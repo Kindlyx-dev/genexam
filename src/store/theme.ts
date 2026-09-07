@@ -30,7 +30,7 @@ export const useTheme = create<ThemeState>()(
       },
     }),
     {
-      name: 'lasttime-theme',
+      name: 'genexam-theme',
       onRehydrateStorage: () => (state) => {
         apply(state?.theme ?? 'dark')
       },
@@ -40,7 +40,7 @@ export const useTheme = create<ThemeState>()(
 
 // boot-time apply (in case persist rehydrate is async)
 if (typeof document !== 'undefined') {
-  const saved = localStorage.getItem('lasttime-theme')
+  const saved = localStorage.getItem('genexam-theme')
   const theme: Theme = saved ? (JSON.parse(saved).state?.theme ?? 'dark') : 'dark'
   apply(theme)
 }

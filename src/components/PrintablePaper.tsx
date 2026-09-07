@@ -78,7 +78,7 @@ export default function PrintablePaper({ paper }: { paper: ExamPaper }) {
       ))}
 
       <p style={{ textAlign: 'center', fontSize: '9pt', marginTop: '6mm', borderTop: '1px solid #999', paddingTop: '2mm' }}>
-        — All the best! (Generated with LastTime) —
+        — All the best! (Generated with Genexam) —
       </p>
     </div>
   )

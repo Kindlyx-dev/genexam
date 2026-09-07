@@ -42,6 +42,6 @@ export const useModels = create<ModelState>()(
         return models.find((m) => m.id === activeModelId) ?? null
       },
     }),
-    { name: 'lasttime-models' },
+    { name: 'genexam-models' },
   ),
 )

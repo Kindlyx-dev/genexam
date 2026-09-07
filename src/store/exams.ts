@@ -20,6 +20,6 @@ export const useExams = create<ExamState>()(
       getPaper: (id) => get().papers.find((x) => x.id === id),
       deletePaper: (id) => set((s) => ({ papers: s.papers.filter((x) => x.id !== id) })),
     }),
-    { name: 'lasttime-exams' },
+    { name: 'genexam-exams' },
   ),
 )

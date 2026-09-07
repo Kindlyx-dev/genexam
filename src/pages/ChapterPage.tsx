@@ -30,7 +30,7 @@ export default function ChapterPage() {
   const { subject, chapter } = findChapter(subjectId, chapterId)
 
   // scope chat per chapter
-  const key = `lasttime-chat-${subjectId}-${chapterId}`
+  const key = `genexam-chat-${subjectId}-${chapterId}`
   const [msgs, setMsgs] = useState<ChatMsg[]>(() => lsGet<ChatMsg[]>(key, []))
   useEffect(() => {
     setMsgs(lsGet(key, []))

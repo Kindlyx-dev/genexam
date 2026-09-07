@@ -24,7 +24,7 @@ const useChat = create<ChatState>()(
       set: (msgs) => set({ msgs }),
       clear: () => set({ msgs: [] }),
     }),
-    { name: 'lasttime-chat' },
+    { name: 'genexam-chat' },
   ),
 )
 

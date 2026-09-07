@@ -1,4 +1,4 @@
-# ⏳ LastTime — MP Board Class 10th Exam Prep
+# ⏳ Genexam — MP Board Class 10th Exam Prep
 
 AI-powered study app for **MP Board Class 10th Trimashik (Quarterly) Exam 2026-27**.
 Apna AI model lao (API key + base URL), aur syllabus se padho, practice karo, full exam do — AI checking ke saath.

@@ -57,7 +57,7 @@ export const useProgress = create<ProgState>()(
         return Math.round(vals.reduce((a, b) => a + b, 0) / vals.length)
       },
     }),
-    { name: 'lasttime-progress' },
+    { name: 'genexam-progress' },
   ),
 )
 
@@ -141,7 +141,7 @@ export const useCards = create<CardState>()(
           .sort((a, b) => a.due - b.due)
       },
     }),
-    { name: 'lasttime-cards' },
+    { name: 'genexam-cards' },
   ),
 )
 
@@ -186,7 +186,7 @@ export const useMistakes = create<MistState>()(
         set((s) => ({ mistakes: s.mistakes.map((m) => (m.id === id ? { ...m, reviewCount: m.reviewCount + 1 } : m)) })),
       clearResolved: () => set((s) => ({ mistakes: s.mistakes.filter((m) => !m.resolved) })),
     }),
-    { name: 'lasttime-mistakes' },
+    { name: 'genexam-mistakes' },
   ),
 )
 
@@ -219,6 +219,6 @@ export const usePlanner = create<PlanState>()(
       toggleTask: (id) => set((s) => ({ tasks: s.tasks.map((t) => (t.id === id ? { ...t, done: !t.done } : t)) })),
       removeTask: (id) => set((s) => ({ tasks: s.tasks.filter((t) => t.id !== id) })),
     }),
-    { name: 'lasttime-planner' },
+    { name: 'genexam-planner' },
   ),
 )

@@ -67,7 +67,7 @@ export const useGam = create<GamState>()(
       bump: (key, n = 1) => set((s) => ({ counters: { ...s.counters, [key]: s.counters[key] + n } })),
       reset: () => set({ xp: 0, streak: 0, bestStreak: 0, lastActive: '', counters: { exams: 0, quizzes: 0, cardsReviewed: 0, pomodoros: 0, questionsSeen: 0 } }),
     }),
-    { name: 'lasttime-gam' },
+    { name: 'genexam-gam' },
   ),
 )
 
