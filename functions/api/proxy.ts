@@ -1,20 +1,31 @@
 // Cloudflare Pages Function: /api/proxy
-// Forwards OpenAI-compatible chat requests to the user's provider.
-// Needed because many AI providers don't send CORS headers, so the
-// browser blocks direct calls ("Failed to fetch"). Retried here
+// Forwards OpenAI-compatible requests (chat completions + model catalog) to
+// the user's provider. Needed because many providers don't send CORS headers,
+// so the browser blocks direct calls ("Failed to fetch"). Retried here
 // server-side, where CORS doesn't apply. Streaming (SSE) passes through.
 export async function onRequestPost({ request }: { request: Request }): Promise<Response> {
   let upstream: Response
   try {
-    const { target, payload } = await request.json<{ target?: string; payload?: unknown }>()
-    if (!target || !/^https:\/\//i.test(target) || !target.includes('/chat/completions')) {
+    const { target, payload, method } = await request.json<{
+      target?: string
+      payload?: unknown
+      method?: 'GET' | 'POST'
+    }>()
+    if (!target || !/^https:\/\//i.test(target)) {
+      return json({ error: 'Invalid target URL' }, 400)
+    }
+    if (method !== 'GET' && !target.includes('/chat/completions') && !target.includes('/models')) {
       return json({ error: 'Invalid target URL' }, 400)
     }
     // rebuild a clean upstream request — never forward cookies/CF headers
     const headers: Record<string, string> = { 'Content-Type': 'application/json' }
     const apiKey = request.headers.get('x-proxy-api-key')
     if (apiKey) headers['Authorization'] = `Bearer ${apiKey}`
-    upstream = await fetch(target, { method: 'POST', headers, body: JSON.stringify(payload ?? {}) })
+    upstream = await fetch(target, {
+      method: method === 'GET' ? 'GET' : 'POST',
+      headers,
+      body: method === 'GET' ? undefined : JSON.stringify(payload ?? {}),
+    })
   } catch {
     return json({ error: 'Proxy could not reach the provider' }, 502)
   }

@@ -13,8 +13,8 @@ function aiProxyDev(): Plugin {
           try {
             const chunks: Buffer[] = []
             for await (const c of req) chunks.push(c as Buffer)
-            const { target, payload } = JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}')
-            if (!target || !/^https:\/\//i.test(target) || !target.includes('/chat/completions')) {
+            const { target, payload, method } = JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}')
+            if (!target || !/^https:\/\//i.test(target)) {
               res.statusCode = 400
               res.end(JSON.stringify({ error: 'Invalid target URL' }))
               return
@@ -22,7 +22,11 @@ function aiProxyDev(): Plugin {
             const headers: Record<string, string> = { 'Content-Type': 'application/json' }
             const key = String(req.headers['x-proxy-api-key'] || '')
             if (key) headers['Authorization'] = `Bearer ${key}`
-            const upstream = await fetch(target, { method: 'POST', headers, body: JSON.stringify(payload ?? {}) })
+            const upstream = await fetch(target, {
+              method: method === 'GET' ? 'GET' : 'POST',
+              headers,
+              body: method === 'GET' ? undefined : JSON.stringify(payload ?? {}),
+            })
             res.statusCode = upstream.status
             const ct = upstream.headers.get('content-type')
             if (ct) res.setHeader('Content-Type', ct)

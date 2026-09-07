@@ -1,45 +1,23 @@
-# ⏳ Genexam — MP Board Class 10th Exam Prep
+# ✦ Genexam
 
-AI-powered study app for **MP Board Class 10th Trimashik (Quarterly) Exam 2026-27**.
-Apna AI model lao (API key + base URL), aur syllabus se padho, practice karo, full exam do — AI checking ke saath.
+**Your syllabus, solved with AI.** Any board, any class, any exam.
 
-## 🚀 Chalane ke liye
+Paste a YouTube lecture link, type your syllabus, or attach a photo/notes file — Genexam's AI tutor reads it and builds everything: study plans, chapter notes, important questions, quizzes and full practice papers.
 
+## How it works
+1. **Add a model** — click *Add model* in the top bar. Choose a provider (OpenRouter, OpenAI, Groq, Gemini, Ollama…), paste your API key, then either **Auto fetch** the model list (FREE badges on free models) or type a Model ID.
+2. **Tell it your syllabus** — paste a link, type it out, or upload a photo of your syllabus/paper.
+3. **Ask for anything** — study plan, notes, MCQ quiz, practice paper, doubt solving. All in one chat.
+
+## Privacy
+- Your API key never leaves your browser (stored in localStorage).
+- Requests go **directly** to your provider; if the provider blocks browser calls (CORS), they're retried through a tiny serverless proxy (`/api/proxy`) that forwards them — nothing is stored.
+
+## Tech
+React + Vite + Tailwind + Zustand. Deploy: Cloudflare Pages (`npm run build` → `dist`, functions auto-deployed from `/functions`).
+
+## Dev
 ```bash
 npm install
-npm run dev
+npm run dev    # http://localhost:5199
 ```
-
-Phir browser mein kholo: **http://localhost:5199** (ya jo port terminal mein dikhe)
-
-Production build:
-
-```bash
-npm run build
-npm run preview
-```
-
-## ⚙️ Setup (pehli baar)
-
-1. **Settings** page kholo → **Add Model**
-2. Preset chuno (OpenAI / OpenRouter / Groq / Gemini / Ollama) ya custom base URL do
-3. API key + Model ID daalo → **Test connection** → **Save**
-4. Jitne chahe models add karo — header se switch kar sakte ho
-5. 👁 **Vision checkbox** un models ke liye tick karo jo images dekh sakte hain (gpt-4o, gemini-2.0-flash, etc.)
-
-## ✨ Features
-
-- **Syllabus** — 6 subjects, 46 chapters (video se nikala gaya quarterly syllabus)
-- **Samjho** — kisi bhi chapter ko AI se detail mein samjhao; text, image, YouTube link sab feed kar sakte ho
-- **Practice** — chapter se PYQ-style questions, apne answers likho, AI examiner banke checks karega
-- **Exam Studio** — poora question paper generate karo (marks/time/difficulty choice); sample paper ki **photo** do toh uska format copy hota hai
-- **AI Checking** — submit karo → step-wise marks, per-question feedback, grade, weak topics
-- **AI Tutor** — free chat with images + YouTube/web link auto-reading (transcript nikaal ke AI ko samajh aata hai)
-
-## 🔒 Privacy
-
-Sab data (API keys, papers, chats) **sirf browser ke localStorage** mein. Koi backend nahi — requests seedha tumhare AI provider ko jaati hain.
-
-## 🛠 Tech
-
-React 18 + TypeScript + Vite + Tailwind CSS + Zustand + react-markdown + KaTeX (math rendering)

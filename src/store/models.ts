@@ -5,7 +5,7 @@ import type { ModelConfig } from '../types'
 interface ModelState {
   models: ModelConfig[]
   activeModelId: string | null
-  addModel: (m: Omit<ModelConfig, 'id' | 'createdAt'>) => void
+  addModel: (m: Omit<ModelConfig, 'id' | 'createdAt'>) => string
   updateModel: (id: string, patch: Partial<ModelConfig>) => void
   removeModel: (id: string) => void
   setActive: (id: string) => void
@@ -23,6 +23,7 @@ export const useModels = create<ModelState>()(
           models: [...s.models, { ...m, id, createdAt: Date.now() }],
           activeModelId: s.activeModelId ?? id,
         }))
+        return id
       },
       updateModel: (id, patch) =>
         set((s) => ({
