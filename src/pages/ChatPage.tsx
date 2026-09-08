@@ -1,15 +1,15 @@
 import { useEffect, useRef, useState } from 'react'
-import { useLocation, Link } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { Mic, MicOff, X, Trash2, MessageSquare, ArrowDown, Plus } from 'lucide-react'
+import { SYLLABUS } from '../data/syllabus'
 import { useModels } from '../store/models'
-import { useUI } from '../store/ui'
 import { streamChat, extractUrls } from '../lib/ai'
 import { useStreamChat } from '../components/useStreamChat'
 import { UserBubble, AssistantBubble, StopSendButton } from '../components/ChatUI'
-import { fetchLinkContext } from '../lib/links'
 import type { ChatMsg, PendingImage } from '../types'
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
+import { useGam } from '../store/gamification'
 
 interface ChatState {
   msgs: ChatMsg[]
@@ -28,21 +28,14 @@ const useChat = create<ChatState>()(
   ),
 )
 
-interface LocState {
-  seed?: string
-  images?: PendingImage[]
-}
-
 export default function ChatPage() {
   const { models, activeModelId } = useModels()
   const model = models.find((m) => m.id === activeModelId) ?? null
   const { msgs, set, clear } = useChat()
-  const loc = useLocation()
-  const seededRef = useRef(false)
+  const { addXp } = useGam()
 
   const [input, setInput] = useState('')
   const [images, setImages] = useState<PendingImage[]>([])
-  const [preparing, setPreparing] = useState('')
   const stream = useStreamChat()
   const reasoningRef = useRef('')
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -84,70 +77,32 @@ export default function ChatPage() {
       onDone: (full) => {
         stream.finish(full)
         set([...list, { role: 'assistant', content: full, reasoning: reasoningRef.current || undefined }])
+        addXp(5)
       },
       onError: (e) => stream.fail(e),
     })
   }
 
-  /** Read links (YouTube transcript / page text) before sending so the AI has real context. */
-  async function prepare(list: ChatMsg[]): Promise<ChatMsg[]> {
-    const last = list[list.length - 1]
-    if (!last || last.role !== 'user') return list
-    const links = extractUrls(last.content)
-    if (links.length === 0) return list
-    try {
-      setPreparing('Reading your link…')
-      const contexts = await Promise.all(links.slice(0, 2).map((u) => fetchLinkContext(u)))
-      const ctx = contexts.filter(Boolean).join('\n\n---\n\n')
-      if (ctx) {
-        return [...list.slice(0, -1), { ...last, content: `${last.content}\n\n[Link context:\n${ctx}\n]` }]
-      }
-    } catch { /* best effort */ }
-    return list
-  }
-
-  async function sendGeneric(text: string, imgs: PendingImage[]) {
+  async function send() {
     reasoningRef.current = ''
-    if ((!text && imgs.length === 0) || stream.isStreaming) return
+    const text = input.trim()
+    if ((!text && images.length === 0) || stream.isStreaming) return
     if (!model) {
-      stream.fail('No model yet — click "Add model" in the top bar.')
+      stream.fail('No model configured yet. Open Settings and add one first.')
       return
     }
+    const imgs = images.map((i) => i.dataUrl)
     const userMsg: ChatMsg = {
       role: 'user',
-      content: text || 'Look at this and help me study it.',
-      images: imgs.length ? imgs.map((i) => i.dataUrl) : undefined,
+      content: text || 'Look at this image and explain it.',
+      images: imgs.length ? imgs : undefined,
     }
     const next = [...msgs, userMsg]
     set(next)
-    setAtBottom(true)
-    const enriched = await prepare(next)
-    setPreparing('')
-    await run(enriched)
-  }
-
-  async function send() {
-    const text = input.trim()
-    const imgs = images
     setInput('')
     setImages([])
-    await sendGeneric(text, imgs)
-  }
-
-  // Seed from the home chatbar (YouTube link / typed syllabus / attachments)
-  useEffect(() => {
-    if (seededRef.current) return
-    const st = (loc.state || {}) as LocState
-    if (st.seed || (st.images && st.images.length)) {
-      seededRef.current = true
-      navReplace()
-      sendGeneric(st.seed || 'Help me study this.', st.images || [])
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-
-  function navReplace() {
-    window.history.replaceState({}, '')
+    setAtBottom(true)
+    await run(next)
   }
 
   function regenerate(idx: number) {
@@ -162,17 +117,13 @@ export default function ChatPage() {
     if (!files) return
     const arr: PendingImage[] = []
     for (const f of Array.from(files).slice(0, 4)) {
-      if (f.type.startsWith('image/')) {
-        const dataUrl = await new Promise<string>((res) => {
-          const r = new FileReader()
-          r.onload = () => res(r.result as string)
-          r.readAsDataURL(f)
-        })
-        arr.push({ dataUrl, name: f.name })
-      } else if (/\.(txt|md|csv)$/i.test(f.name) && f.size < 512 * 1024) {
-        const content = await f.text()
-        setInput((t) => `${t}${t ? '\n\n' : ''}[Attached file — ${f.name}]\n${content}`)
-      }
+      if (!f.type.startsWith('image/')) continue
+      const dataUrl = await new Promise<string>((res) => {
+        const r = new FileReader()
+        r.onload = () => res(r.result as string)
+        r.readAsDataURL(f)
+      })
+      arr.push({ dataUrl, name: f.name })
     }
     setImages((p) => [...p, ...arr])
     if (fileRef.current) fileRef.current.value = ''
@@ -220,7 +171,7 @@ export default function ChatPage() {
           <h1 className="flex items-center gap-2 text-base font-bold sm:text-lg">
             <MessageSquare className="text-indigo-500 dark:text-indigo-400" size={17} /> AI Tutor
           </h1>
-          <p className="text-[11px] text-muted">Syllabus, YouTube links, photos, doubts — sab yahan.</p>
+          <p className="text-[11px] text-muted">Ask anything — text, images, YouTube links, or voice.</p>
         </div>
         {msgs.length > 0 && (
           <button className="btn-ghost !py-2 text-xs" onClick={clear}>
@@ -233,9 +184,7 @@ export default function ChatPage() {
       <div className="relative min-h-0 flex-1">
         <div ref={scrollRef} onScroll={onScroll} className="h-full overflow-y-auto pt-5">
           <div className="mx-auto max-w-3xl space-y-6 px-1">
-            {msgs.length === 0 && !stream.isStreaming && (
-              <Welcome onPick={(t) => setInput(t)} hasModel={!!model} />
-            )}
+            {msgs.length === 0 && !stream.isStreaming && <Welcome onPick={(t) => setInput(t)} hasModel={!!model} />}
             {msgs.map((m, i) =>
               m.role === 'user' ? (
                 <UserBubble key={i} msg={m} />
@@ -249,11 +198,6 @@ export default function ChatPage() {
               ),
             )}
             {stream.isStreaming && <AssistantBubble content={stream.text} streaming reasoning={stream.reasoning} />}
-            {preparing && (
-              <div className="rounded-xl border border-indigo-500/40 bg-indigo-500/10 p-3 text-xs text-indigo-600 dark:text-indigo-300">
-                {preparing}
-              </div>
-            )}
             {stream.error && (
               <div className="rounded-xl border border-red-500/40 bg-red-500/10 p-3 text-xs text-red-500 dark:text-red-300">
                 {stream.error}
@@ -292,11 +236,11 @@ export default function ChatPage() {
           </div>
         )}
         <div className="card flex items-end gap-1.5 p-2 !rounded-3xl shadow-pop">
-          <input ref={fileRef} type="file" accept="image/*,.txt,.md,.csv" multiple hidden onChange={(e) => onFiles(e.target.files)} />
+          <input ref={fileRef} type="file" accept="image/*" multiple hidden onChange={(e) => onFiles(e.target.files)} />
           <button
             className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-faint transition hover:bg-surface2 hover:text-fg"
             onClick={() => fileRef.current?.click()}
-            title="Attach photo or file"
+            title="Attach image"
           >
             <Plus size={19} />
           </button>
@@ -310,7 +254,7 @@ export default function ChatPage() {
               }
             }}
             rows={1}
-            placeholder={hasYT ? 'YouTube link detected — just send it!' : 'Paste a syllabus, lecture link, or ask anything…'}
+            placeholder={hasYT ? 'YouTube link detected — just send it!' : 'Ask anything…'}
             className="max-h-40 flex-1 resize-none bg-transparent px-1 py-2.5 text-[15px] outline-none placeholder:text-faint"
           />
           {stream.isStreaming ? (
@@ -338,7 +282,7 @@ export default function ChatPage() {
           )}
         </div>
         <p className="mt-1.5 text-center text-[10px] text-faint">
-          AI can make mistakes — verify important facts. · {!model && <button className="text-amber-500 underline" onClick={() => useUI.getState().openAddModel()}>Add a model to start</button>}
+          AI can make mistakes — verify important facts. · {!model && <Link to="/settings" className="text-amber-500 underline">Add a model in Settings</Link>}
         </p>
       </div>
     </div>
@@ -346,23 +290,40 @@ export default function ChatPage() {
 }
 
 function Welcome({ onPick, hasModel }: { onPick: (t: string) => void; hasModel: boolean }) {
+  const [subject, setSubject] = useState(SYLLABUS[0])
   return (
     <div className="flex flex-col items-center gap-5 py-8 text-center">
       <span className="grid h-16 w-16 place-items-center rounded-3xl bg-gradient-to-br from-indigo-500 via-violet-500 to-fuchsia-500 text-white shadow-glow">
         <svg width="30" height="30" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.4 7.2L22 12l-7.6 2.8L12 22l-2.4-7.2L2 12l7.6-2.8L12 2z"/></svg>
       </span>
       <div>
-        <h2 className="text-xl font-extrabold tracking-tight sm:text-2xl">Kya seekhna hai aaj?</h2>
+        <h2 className="text-xl font-extrabold tracking-tight sm:text-2xl">What are we learning today?</h2>
         <p className="mt-1.5 text-sm text-muted">
-          YouTube link do toh transcript padh ke guide karega. Syllabus type karo toh plan, notes, quiz — sab banega.
+          Drop a YouTube link to understand a video. Attach a photo to solve a question. Ask any doubt.
         </p>
+      </div>
+
+      <div className="flex flex-wrap justify-center gap-1.5">
+        {SYLLABUS.map((s) => (
+          <button
+            key={s.id}
+            onClick={() => setSubject(s)}
+            className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
+              subject.id === s.id
+                ? 'border-indigo-500 bg-indigo-500/10 text-indigo-600 dark:text-indigo-300'
+                : 'border-line text-muted hover:bg-surface2'
+            }`}
+          >
+            {s.emoji} {s.name}
+          </button>
+        ))}
       </div>
       <div className="grid w-full max-w-xl gap-1.5 sm:grid-cols-2">
         {[
-          'Meri syllabus copy karo: [yahan paste karo] — phir 7-day study plan banao',
-          'Is YouTube lecture se notes banao: [link paste karo]',
-          'Mere syllabus ke most important 20 questions do',
-          'Mujhe ek 25-mark practice paper do meri syllabus se',
+          `Explain the chapter "${subject.chapters[0]?.name}" with a full summary for the exam`,
+          `Give me the 10 most important ${subject.name} questions in PYQ style`,
+          `I find ${subject.name} difficult — make me a 7-day revision plan`,
+          `How do I score 90+ in ${subject.name}? Give me a strategy`,
         ].map((s) => (
           <button
             key={s}
@@ -375,7 +336,7 @@ function Welcome({ onPick, hasModel }: { onPick: (t: string) => void; hasModel: 
       </div>
       {!hasModel && (
         <p className="text-xs text-amber-500">
-          <button className="underline" onClick={() => useUI.getState().openAddModel()}>Add a model</button> to get started.
+          <Link to="/settings" className="underline">Add a model in Settings</Link> to get started.
         </p>
       )}
     </div>
