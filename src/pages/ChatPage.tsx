@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
-import { Link, useLocation } from 'react-router-dom'
-import { Mic, MicOff, X, ArrowDown, Plus, RotateCcw } from 'lucide-react'
+import { useLocation, Link } from 'react-router-dom'
+import { Mic, MicOff, X, Trash2, MessageSquare, ArrowDown, Plus } from 'lucide-react'
 import { useModels } from '../store/models'
 import { useUI } from '../store/ui'
 import { streamChat, extractUrls } from '../lib/ai'
 import { useStreamChat } from '../components/useStreamChat'
-import { AssistantBubble, StopSendButton } from '../components/ChatUI'
+import { UserBubble, AssistantBubble, StopSendButton } from '../components/ChatUI'
 import { fetchLinkContext } from '../lib/links'
 import type { ChatMsg, PendingImage } from '../types'
 import { create } from 'zustand'
@@ -33,10 +33,6 @@ interface LocState {
   images?: PendingImage[]
 }
 
-/**
- * Google-style results page: the chatbar sits at the top (like Google's search
- * box on the results screen) and every answer streams below it as results.
- */
 export default function ChatPage() {
   const { models, activeModelId } = useModels()
   const model = models.find((m) => m.id === activeModelId) ?? null
@@ -68,7 +64,7 @@ export default function ChatPage() {
   function onScroll() {
     const el = scrollRef.current
     if (!el) return
-    setAtBottom(el.scrollHeight - el.scrollTop - el.clientHeight < 160)
+    setAtBottom(el.scrollHeight - el.scrollTop - el.clientHeight < 120)
   }
 
   async function run(list: ChatMsg[]) {
@@ -144,11 +140,15 @@ export default function ChatPage() {
     const st = (loc.state || {}) as LocState
     if (st.seed || (st.images && st.images.length)) {
       seededRef.current = true
-      window.history.replaceState({}, '')
+      navReplace()
       sendGeneric(st.seed || 'Help me study this.', st.images || [])
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  function navReplace() {
+    window.history.replaceState({}, '')
+  }
 
   function regenerate(idx: number) {
     if (stream.isStreaming) return
@@ -210,75 +210,77 @@ export default function ChatPage() {
     setListening(true)
   }
 
-  const empty = msgs.length === 0 && !stream.isStreaming
+  const hasYT = extractUrls(input).some((u) => /youtu\.?be|youtube\.com/.test(u))
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
-      {/* ── Sticky search bar (Google results style) ── */}
-      <div className="sticky top-14 z-30 border-b border-line bg-bg/90 backdrop-blur-xl no-print">
-        <div className="mx-auto flex max-w-3xl items-center gap-3 px-4 py-2.5">
-          <Link to="/" className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-indigo-500 via-violet-500 to-fuchsia-500 text-white shadow-glow" title="New search">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.4 7.2L22 12l-7.6 2.8L12 22l-2.4-7.2L2 12l7.6-2.8L12 2z" /></svg>
-          </Link>
-
-          <div className="card flex flex-1 items-end gap-1 !rounded-full p-1 pr-1.5 transition focus-within:border-indigo-500/60">
-            <input ref={fileRef} type="file" accept="image/*,.txt,.md,.csv" multiple hidden onChange={(e) => onFiles(e.target.files)} />
-            <button
-              className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-faint transition hover:bg-surface2 hover:text-fg"
-              onClick={() => fileRef.current?.click()}
-              title="Attach photo or file"
-            >
-              <Plus size={17} />
-            </button>
-            <textarea
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault()
-                  send()
-                }
-              }}
-              rows={1}
-              placeholder={hasYT(input) ? 'YouTube link detected — press Enter' : 'Search again — syllabus, link, or question…'}
-              className="max-h-32 flex-1 resize-none bg-transparent px-0.5 py-2 text-sm outline-none placeholder:text-faint"
-            />
-            {stream.isStreaming ? (
-              <StopSendButton onClick={stream.stop} />
-            ) : (
-              <>
-                <button
-                  onClick={toggleMic}
-                  className={`grid h-9 w-9 shrink-0 place-items-center rounded-full transition ${listening ? 'mic-live bg-red-500 text-white' : 'text-faint hover:bg-surface2 hover:text-fg'}`}
-                  title="Speak"
-                >
-                  {listening ? <MicOff size={15} /> : <Mic size={15} />}
-                </button>
-                <button
-                  className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-indigo-600 text-white transition hover:bg-indigo-500 disabled:opacity-40"
-                  onClick={send}
-                  disabled={!input.trim() && images.length === 0}
-                  title="Search"
-                >
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M12 19V5M5 12l7-7 7 7" />
-                  </svg>
-                </button>
-              </>
-            )}
-          </div>
-
-          {msgs.length > 0 && (
-            <button className="btn-ghost !p-2 text-faint" onClick={clear} title="New search">
-              <RotateCcw size={15} />
-            </button>
-          )}
+    <div className="flex h-[calc(100dvh-3.5rem-72px)] flex-col sm:h-[calc(100dvh-3.5rem-28px)]">
+      {/* Chat header */}
+      <div className="flex items-center justify-between border-b border-line px-1 pb-3">
+        <div>
+          <h1 className="flex items-center gap-2 text-base font-bold sm:text-lg">
+            <MessageSquare className="text-indigo-500 dark:text-indigo-400" size={17} /> AI Tutor
+          </h1>
+          <p className="text-[11px] text-muted">Syllabus, YouTube links, photos, doubts — sab yahan.</p>
         </div>
+        {msgs.length > 0 && (
+          <button className="btn-ghost !py-2 text-xs" onClick={clear}>
+            <Trash2 size={13} /> <span className="hidden sm:inline">New chat</span>
+          </button>
+        )}
+      </div>
+
+      {/* Messages */}
+      <div className="relative min-h-0 flex-1">
+        <div ref={scrollRef} onScroll={onScroll} className="h-full overflow-y-auto pt-5">
+          <div className="mx-auto max-w-3xl space-y-6 px-1">
+            {msgs.length === 0 && !stream.isStreaming && (
+              <Welcome onPick={(t) => setInput(t)} hasModel={!!model} />
+            )}
+            {msgs.map((m, i) =>
+              m.role === 'user' ? (
+                <UserBubble key={i} msg={m} />
+              ) : (
+                <AssistantBubble
+                  key={i}
+                  content={m.content}
+                  reasoning={m.reasoning}
+                  onRegenerate={i === lastAssistantIdx && !stream.isStreaming ? () => regenerate(i) : undefined}
+                />
+              ),
+            )}
+            {stream.isStreaming && <AssistantBubble content={stream.text} streaming reasoning={stream.reasoning} />}
+            {preparing && (
+              <div className="rounded-xl border border-indigo-500/40 bg-indigo-500/10 p-3 text-xs text-indigo-600 dark:text-indigo-300">
+                {preparing}
+              </div>
+            )}
+            {stream.error && (
+              <div className="rounded-xl border border-red-500/40 bg-red-500/10 p-3 text-xs text-red-500 dark:text-red-300">
+                {stream.error}
+              </div>
+            )}
+            <div ref={bottomRef} className="h-2" />
+          </div>
+        </div>
+
+        {!atBottom && (
+          <button
+            onClick={() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }); setAtBottom(true) }}
+            className="absolute bottom-4 left-1/2 grid h-9 w-9 -translate-x-1/2 place-items-center rounded-full border border-line bg-surface text-fg shadow-pop"
+            aria-label="Scroll to bottom"
+          >
+            <ArrowDown size={16} />
+          </button>
+        )}
+      </div>
+
+      {/* Composer */}
+      <div className="mx-auto w-full max-w-3xl pb-3 pt-2">
         {images.length > 0 && (
-          <div className="mx-auto flex max-w-3xl flex-wrap gap-2 px-4 pb-2.5">
+          <div className="mb-2 flex flex-wrap gap-2">
             {images.map((img, i) => (
               <div key={i} className="relative">
-                <img src={img.dataUrl} alt={img.name} className="h-12 w-12 rounded-lg border border-line object-cover" />
+                <img src={img.dataUrl} alt={img.name} className="h-16 w-16 rounded-xl border border-line object-cover" />
                 <button
                   onClick={() => setImages((p) => p.filter((_, j) => j !== i))}
                   className="absolute -right-1.5 -top-1.5 grid h-5 w-5 place-items-center rounded-full bg-red-500 text-white shadow"
@@ -289,102 +291,93 @@ export default function ChatPage() {
             ))}
           </div>
         )}
-      </div>
-
-      {/* ── Results ── */}
-      <div ref={scrollRef} onScroll={onScroll} className="relative min-h-0 flex-1 overflow-y-auto">
-        {empty ? (
-          <div className="flex flex-col items-center gap-5 px-4 py-16 text-center">
-            <span className="grid h-16 w-16 place-items-center rounded-3xl bg-gradient-to-br from-indigo-500 via-violet-500 to-fuchsia-500 text-white shadow-glow">
-              <svg width="30" height="30" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.4 7.2L22 12l-7.6 2.8L12 22l-2.4-7.2L2 12l7.6-2.8L12 2z" /></svg>
-            </span>
-            <div>
-              <h2 className="text-xl font-extrabold tracking-tight sm:text-2xl">What are we studying today?</h2>
-              <p className="mt-1.5 max-w-md text-sm text-muted">
-                Search above with a YouTube link, your syllabus, or a photo — the AI tutor builds notes, plans, quizzes and papers from it.
-              </p>
-            </div>
-            <div className="grid w-full max-w-xl gap-1.5 sm:grid-cols-2">
-              {[
-                'Make me a 7-day study plan from my syllabus: [paste it]',
-                'Take notes from this lecture: [YouTube link]',
-                'Give me the 20 most important questions from: [chapter]',
-                'Create a 25-mark practice paper from: [topic]',
-              ].map((s) => (
-                <button
-                  key={s}
-                  onClick={() => setInput(s)}
-                  className="rounded-2xl border border-line bg-surface p-3 text-left text-xs text-muted transition hover:border-indigo-500/40 hover:text-fg"
-                >
-                  {s}
-                </button>
-              ))}
-            </div>
-            {!model && (
-              <p className="text-xs text-amber-500">
-                <button className="underline" onClick={() => useUI.getState().openAddModel()}>Add a model</button> to get results.
-              </p>
-            )}
-          </div>
-        ) : (
-          <div className="mx-auto max-w-3xl px-4 py-6">
-            {msgs.map((m, i) =>
-              m.role === 'user' ? (
-                <div key={i} className="mb-4 border-b border-line pb-4">
-                  {m.images && m.images.length > 0 && (
-                    <div className="mb-2 flex flex-wrap gap-1.5">
-                      {m.images.map((img, j) => (
-                        <img key={j} src={img} alt="" className="h-20 rounded-xl border border-line object-cover" />
-                      ))}
-                    </div>
-                  )}
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-faint">You searched</p>
-                  <p className="mt-1 whitespace-pre-wrap text-[15px] font-semibold leading-relaxed text-fg">{m.content}</p>
-                </div>
-              ) : (
-                <div key={i} className="mb-8">
-                  <AssistantBubble
-                    content={m.content}
-                    reasoning={m.reasoning}
-                    onRegenerate={i === lastAssistantIdx && !stream.isStreaming ? () => regenerate(i) : undefined}
-                  />
-                </div>
-              ),
-            )}
-            {stream.isStreaming && (
-              <div className="mb-8">
-                <AssistantBubble content={stream.text} streaming reasoning={stream.reasoning} />
-              </div>
-            )}
-            {preparing && (
-              <div className="mb-6 rounded-xl border border-indigo-500/40 bg-indigo-500/10 p-3 text-xs text-indigo-600 dark:text-indigo-300">
-                {preparing}
-              </div>
-            )}
-            {stream.error && (
-              <div className="mb-6 rounded-xl border border-red-500/40 bg-red-500/10 p-3 text-xs text-red-500 dark:text-red-300">
-                {stream.error}
-              </div>
-            )}
-            <div ref={bottomRef} className="h-2" />
-            <p className="pb-8 text-center text-[10px] text-faint">AI can make mistakes — verify important facts.</p>
-          </div>
-        )}
-
-        {!atBottom && !empty && (
+        <div className="card flex items-end gap-1.5 p-2 !rounded-3xl shadow-pop">
+          <input ref={fileRef} type="file" accept="image/*,.txt,.md,.csv" multiple hidden onChange={(e) => onFiles(e.target.files)} />
           <button
-            onClick={() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }); setAtBottom(true) }}
-            className="sticky bottom-4 left-1/2 grid h-9 w-9 -translate-x-1/2 place-items-center rounded-full border border-line bg-surface text-fg shadow-pop"
-            aria-label="Scroll to bottom"
+            className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-faint transition hover:bg-surface2 hover:text-fg"
+            onClick={() => fileRef.current?.click()}
+            title="Attach photo or file"
           >
-            <ArrowDown size={16} />
+            <Plus size={19} />
           </button>
-        )}
+          <textarea
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault()
+                send()
+              }
+            }}
+            rows={1}
+            placeholder={hasYT ? 'YouTube link detected — just send it!' : 'Paste a syllabus, lecture link, or ask anything…'}
+            className="max-h-40 flex-1 resize-none bg-transparent px-1 py-2.5 text-[15px] outline-none placeholder:text-faint"
+          />
+          {stream.isStreaming ? (
+            <StopSendButton onClick={stream.stop} />
+          ) : (
+            <>
+              <button
+                onClick={toggleMic}
+                className={`grid h-10 w-10 shrink-0 place-items-center rounded-full transition ${listening ? 'mic-live bg-red-500 text-white' : 'text-faint hover:bg-surface2 hover:text-fg'}`}
+                title="Speak"
+              >
+                {listening ? <MicOff size={17} /> : <Mic size={17} />}
+              </button>
+              <button
+                className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-indigo-600 text-white transition hover:bg-indigo-500 disabled:opacity-40"
+                onClick={send}
+                disabled={!input.trim() && images.length === 0}
+                title="Send"
+              >
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 19V5M5 12l7-7 7 7" />
+                </svg>
+              </button>
+            </>
+          )}
+        </div>
+        <p className="mt-1.5 text-center text-[10px] text-faint">
+          AI can make mistakes — verify important facts. · {!model && <button className="text-amber-500 underline" onClick={() => useUI.getState().openAddModel()}>Add a model to start</button>}
+        </p>
       </div>
     </div>
   )
 }
 
-function hasYT(text: string): boolean {
-  return extractUrls(text).some((u) => /youtu\.?be|youtube\.com/.test(u))
+function Welcome({ onPick, hasModel }: { onPick: (t: string) => void; hasModel: boolean }) {
+  return (
+    <div className="flex flex-col items-center gap-5 py-8 text-center">
+      <span className="grid h-16 w-16 place-items-center rounded-3xl bg-gradient-to-br from-indigo-500 via-violet-500 to-fuchsia-500 text-white shadow-glow">
+        <svg width="30" height="30" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.4 7.2L22 12l-7.6 2.8L12 22l-2.4-7.2L2 12l7.6-2.8L12 2z"/></svg>
+      </span>
+      <div>
+        <h2 className="text-xl font-extrabold tracking-tight sm:text-2xl">Kya seekhna hai aaj?</h2>
+        <p className="mt-1.5 text-sm text-muted">
+          YouTube link do toh transcript padh ke guide karega. Syllabus type karo toh plan, notes, quiz — sab banega.
+        </p>
+      </div>
+      <div className="grid w-full max-w-xl gap-1.5 sm:grid-cols-2">
+        {[
+          'Meri syllabus copy karo: [yahan paste karo] — phir 7-day study plan banao',
+          'Is YouTube lecture se notes banao: [link paste karo]',
+          'Mere syllabus ke most important 20 questions do',
+          'Mujhe ek 25-mark practice paper do meri syllabus se',
+        ].map((s) => (
+          <button
+            key={s}
+            onClick={() => onPick(s)}
+            className="rounded-2xl border border-line bg-surface p-3 text-left text-xs text-muted transition hover:border-indigo-500/40 hover:text-fg"
+          >
+            {s}
+          </button>
+        ))}
+      </div>
+      {!hasModel && (
+        <p className="text-xs text-amber-500">
+          <button className="underline" onClick={() => useUI.getState().openAddModel()}>Add a model</button> to get started.
+        </p>
+      )}
+    </div>
+  )
 }
